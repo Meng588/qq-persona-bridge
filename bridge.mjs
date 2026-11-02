@@ -28,17 +28,17 @@ import { config, resolveTool } from './config.mjs'
 const HOME = os.homedir()
 const DIR = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
-const NAPCAT_WS = process.env.AYAN_WS || 'ws://127.0.0.1:36199'
-const SEND_PORT = Number(process.env.AYAN_SEND_PORT) || 3002
+const NAPCAT_WS = env('') || 'ws://127.0.0.1:36199'
+const SEND_PORT = Number(env('')) || 3002
 const DSH_EXE = resolveTool(config.dshExe, 'DeepSeek Harness.exe')
 const DSH_CLI = resolveTool(config.dshCli)
-const HISTORY_TURNS = Number(process.env.AYAN_HISTORY) || 5
-const TIMEOUT_MS = Number(process.env.AYAN_TIMEOUT_MS) || 240000
-const ACK_MS = Number(process.env.AYAN_ACK_MS) || 1200
-const PROGRESS_MS = Number(process.env.AYAN_PROGRESS_MS) || 90000
-const ACK_ON = String(process.env.AYAN_ACK || 'off').toLowerCase() === 'on'
-const ACK_BASE = process.env.AYAN_ACK_BASE || ''
-const ACK_MODEL = process.env.AYAN_ACK_MODEL || ''
+const HISTORY_TURNS = Number(env('')) || 5
+const TIMEOUT_MS = Number(env('')) || 240000
+const ACK_MS = Number(env('')) || 1200
+const PROGRESS_MS = Number(env('')) || 90000
+const ACK_ON = String(env('') || 'off').toLowerCase() === 'on'
+const ACK_BASE = env('') || ''
+const ACK_MODEL = env('') || ''
 
 /**
  * 应答和进度用哪个模型：跟着 profile 里当前的默认模型走，别写死。
@@ -113,9 +113,9 @@ async function quickAck(userText) {
     clearTimeout(timer)
   }
 }
-const MAX_PARALLEL = Number(process.env.AYAN_MAX_PARALLEL) || 1
+const MAX_PARALLEL = Number(env('')) || 1
 /* 同一个人连发多条时，先攒一下再一起处理——真人不会把"你能做到吗"当独立问题 */
-const MERGE_MS = Number(process.env.AYAN_MERGE_MS) || 3500
+const MERGE_MS = Number(env('')) || 3500
 
 const LOG = path.join(DIR, 'bridge.log')
 /**
@@ -755,8 +755,17 @@ function overusedPhrases(history, minReplies = 3, window = 10) {
   return picked
 }
 
+/**
+ * 环境变量：新的 Q QPB_ 优先，老的 AYAN_ 保留兼容。
+ * 项目早期用 AYAN_ 前缀，直接砍掉会让别人的配置静默失效。
+ */
+function env(name, fallback = '') {
+  const suffix = name.replace(/^AYAN_/, '')
+  return process.env['QQPB_' + suffix] || process.env[name] || fallback
+}
+
 /* ---------- 记忆检索（SQLite 服务，8790） ---------- */
-const MEM_URL = process.env.AYAN_MEM_URL || 'http://127.0.0.1:8790'
+const MEM_URL = env('') || 'http://127.0.0.1:8790'
 
 /**
  * 按当前这句话去记忆库里捞相关的事。
@@ -2005,7 +2014,7 @@ function ocrImage(file) {
 }
 
 /* ---------- 自主唤醒：想不想找他说话，由状态决定，不由钟点决定 ---------- */
-const AWAKE_ON = String(process.env.AYAN_AWAKE || 'on').toLowerCase() !== 'off'
+const AWAKE_ON = String(env('') || 'on').toLowerCase() !== 'off'
 let awakening = null
 
 function recentLines() {

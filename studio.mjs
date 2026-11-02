@@ -238,7 +238,7 @@ export function createStudio({ dir, log = () => {}, chat = () => null }) {
     const d = dirOf(sid)
     const out = path.join(ROOT, sid + '.bundle.json')
     const bundle = {
-      format: 'ayan-persona/1',
+      format: 'qq-persona-bridge/1',
       persona: meta.persona,
       meta: { id: meta.id, name: meta.name, tagline: meta.tagline, voice: meta.voice, expression: meta.expression, lines: meta.lines },
       hasVoice: fs.existsSync(path.join(d, sid + '.breeze')),

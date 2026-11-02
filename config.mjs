@@ -30,9 +30,20 @@ function readConfig() {
 
 const CFG = readConfig()
 
+/**
+ * 取配置值，优先级：环境变量 > config.json > 内置默认。
+ *
+ * 环境变量认两个前缀，新的 Q QPB_ 优先，老的 AYAN_ 保留兼容——
+ * 项目早期用过 AYAN_ 前缀，砍掉会让别人的配置静默失效。
+ */
 function pick(key, envName, fallback) {
-  const fromEnv = envName ? process.env[envName] : ''
-  if (fromEnv) return fromEnv
+  if (envName) {
+    const suffix = envName.replace(/^AYAN_/, '')
+    const modern = process.env['QQPB_' + suffix]
+    if (modern) return modern
+    const legacy = process.env[envName]
+    if (legacy) return legacy
+  }
   const v = CFG[key]
   if (v !== undefined && v !== null && v !== '') return v
   return fallback

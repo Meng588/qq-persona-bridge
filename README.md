@@ -1,4 +1,4 @@
-# 阿砚 · QQ 私信桥
+# QQ 人设桥
 
 一个跑在 QQ 上的 AI 伴侣。核心不是"能聊天"，是**聊起来不像在跟机器人说话**。
 
@@ -98,7 +98,7 @@ SQLite 记忆服务，每来一条消息查一次，按当前话题捞相关的�
 
 ```bash
 git clone <this-repo>
-cd ayan-qq-bridge
+cd qq-persona-bridge
 copy config.example.json config.json    # 改里面的路径
 ```
 
@@ -176,6 +176,26 @@ curl -X POST http://127.0.0.1:3002/studio/activate -d '{"id":"dafeiyu"}'
 ## 记忆
 
 见 [MEMORY.md](MEMORY.md)。
+
+## 环境变量
+
+配置文件之外的临时覆盖，用环境变量。优先级：`config.json` 会被环境变量盖掉。
+
+新前缀是 `QQPB_`（QQ Persona Bridge），老的 `AYAN_` 仍然认，项目早期用过那个。
+
+```
+QQPB_WS              NapCat 的 OneBot WebSocket
+QQPB_SEND_PORT       桥接自己的控制台端口，默认 3002
+QQPB_DSH             模型运行时可执行文件
+QQPB_CLI             模型运行时的 cli.js
+QQPB_PROFILE         headless profile 的 cordis.patch.yml
+QQPB_MEM_URL         记忆服务地址
+QQPB_TTS_URL         语音服务地址
+QQPB_HISTORY         上下文带几轮，默认 5
+QQPB_TIMEOUT_MS      单次回复超时，默认 240000
+QQPB_ACK=on          先应一声 + 每 90 秒报进度（默认关）
+QQPB_AWAKE=off       关掉自主唤醒
+```
 
 ## 接口
 
