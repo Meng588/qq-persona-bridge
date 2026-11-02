@@ -1,5 +1,5 @@
 @echo off
-rem 启动阿砚（QQ 私信桥）
+rem 启动 QQ 私信桥
 rem
 rem 需要先准备好：
 rem   1. DSH 运行时 —— 把路径填进 config.json 的 dshExe
@@ -7,9 +7,9 @@ rem   2. NapCat —— QQ 协议端点，默认 ws://127.0.0.1:36199
 rem
 rem 本脚本用相对路径，跟着仓库走就能跑。
 
-setlocal
+setlocal EnableDelayedExpansion
 cd /d "%~dp0"
-title ayan-qq-bridge
+title qq-bridge
 
 rem 用 DSH 运行时自带的 node（Electron 的 node 模式）。
 rem WebSocket 和 child_process 都是内置的，不需要装包。
@@ -29,10 +29,13 @@ if not exist "config.json" (
   exit /b 1
 )
 
-rem 从 config.json 取 dshExe
-for /f "usebackq delims=" %%i in (`node -e "import('./config.mjs').then(m=>console.log(m.config.dshExe||''))"`) do set DSH_EXE=%%i
+rem 从 config.json 取 dshExe。
+rem 必须开 EnableDelayedExpansion —— 否则下面的 if 块里 !DSH_EXE! 会在
+rem 解析时就展开成空，判断永远成立不了。
+set "DSH_EXE="
+for /f "usebackq delims=" %%i in (`node -e "import('./config.mjs').then(m=>console.log(m.config.dshExe||''))"`) do set "DSH_EXE=%%i"
 
-if "%DSH_EXE%"=="" (
+if "!DSH_EXE!"=="" (
   echo   config.json 里的 dshExe 没填。
   pause
   exit /b 1
@@ -47,8 +50,8 @@ if %errorlevel%==0 (
   exit /b 0
 )
 
-echo   启动阿砚，控制台 http://127.0.0.1:3002/
-"%DSH_EXE%" "%~dp0bridge.mjs"
+echo   启动，控制台 http://127.0.0.1:3002/
+"!DSH_EXE!" "%~dp0bridge.mjs"
 
 echo.
 echo bridge stopped. press any key to close.

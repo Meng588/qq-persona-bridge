@@ -1,5 +1,5 @@
 /**
- * 阿砚 · QQ 私信桥（异步版）
+ * QQ 私信桥（异步版）
  * ---------------------------------------------------------------------------
  *   QQ ←→ NapCat(ws://127.0.0.1:36199) ←→ 本脚本 ←→ dsh headless
  *
@@ -2153,7 +2153,7 @@ function connect() {
       const sticker = stickerUrls.has(url)
       if (sticker) { saveSticker(file); stickerFiles.push(file) }
       saved.push(file)
-      /* 沙箱里阿砚自己起不了子进程，所以 OCR 和抽帧都由桥来做 */
+      /* 沙箱里她自己起不了子进程，所以 OCR 和抽帧都由桥来做 */
       /* 表情包不用 OCR（它没文字） */
       if (!sticker) {
         const got = await ocrImage(file)
@@ -2310,7 +2310,7 @@ const NAPCAT_PORT = 36199
 const WATCHDOG = {
   /* 2026-11-02 关闭：QQ 现在跑在 Docker 容器里（NapCat），
      容器由 --restart unless-stopped 自己保活。
-     阿砚的看门狗会去拉起 Windows 版 NapCat，
+     看门狗会去拉起 Windows 版 NapCat，
      两个 NapCat 抢同一个 QQ 号会互相顶号，导致两边都掉线。
      要恢复旧行为就改回 true，并同时停掉 Docker 容器。 */
   enabled: true,
@@ -2531,7 +2531,7 @@ function renderPage() {
   return (
     '<!doctype html><html lang="zh"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>阿砚 · 模型</title><style>' +
+    '<title>模型选择</title><style>' +
     'body{font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif;background:#f6f6f7;color:#1c1c1e;margin:0;padding:40px 20px}' +
     '.card{max-width:520px;margin:0 auto;background:#fff;border:1px solid #e5e5ea;border-radius:14px;padding:24px}' +
     'h1{font-size:17px;margin:0 0 4px}p.sub{margin:0 0 20px;color:#8e8e93;font-size:13px}' +
@@ -2540,7 +2540,7 @@ function renderPage() {
     'button{margin-top:16px;width:100%;padding:11px;border:0;border-radius:9px;background:#0a84ff;color:#fff;font:inherit;font-weight:600}' +
     '#msg{margin-top:12px;font-size:13px;color:#8e8e93;min-height:20px}' +
     '</style></head><body><div class="card">' +
-    '<h1>阿砚用哪个模型</h1>' +
+    '<h1>用哪个模型</h1>' +
     '<p class="sub">改完对下一条 QQ 消息生效，不用重启。</p>' +
     '<select id="pick">' + rows + '</select>' +
     '<button id="save">保存</button><div id="msg"></div>' +
@@ -3040,7 +3040,7 @@ function startSendServer() {
           steps.push({ step: 'NapCat 就绪', ok: state === 'running', note: state })
         }
 
-        /* WS 通道（阿砚每 5 秒自己重连，这里只等它连上） */
+        /* WS 通道（每 5 秒自己重连，这里只等它连上） */
         let wsOk = false
         for (let i = 0; i < 15; i++) {
           wsOk = Boolean(socket && socket.readyState === 1)
@@ -3359,7 +3359,7 @@ function sweepOrphans() {
     log('清扫残留失败（不影响使用）：' + String((err && err.message) || err))
   }
 }
-log('阿砚桥启动 · 白名单 ' + (loadAllow().join(',') || '（空：接受所有私聊）'))
+log('桥启动 · 白名单 ' + (loadAllow().join(',') || '（空：接受所有私聊）'))
 
 if (process.argv.includes('--self-test')) {
   askAyan('用五个字回答：自检通过').then((result) => {
