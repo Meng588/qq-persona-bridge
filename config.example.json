@@ -1,0 +1,36 @@
+{
+  "_readme": [
+    "复制成 config.json 再改。config.json 不会被提交（见 .gitignore）。",
+    "所有路径可以写绝对路径，也可以写 ~ 开头的家目录路径，或相对本文件所在目录的相对路径。",
+    "留空表示不用这个功能。环境变量优先级更高（AYAN_DSH / AYAN_WS / AYAN_MEM_URL 等）。"
+  ],
+
+  "_dsh": "模型运行时。DSH 是闭源的，需要自己准备；路径指向 dsh-desktop-host 的 cli.js。",
+  "dshExe": "",
+  "dshCli": "",
+  "dshCwd": "",
+  "dshProfile": "~/.dsh/profiles/headless/cordis.patch.yml",
+
+  "_napcat": "QQ 协议端。需要自己装 NapCat（第三方项目，不含在本仓库里）。",
+  "napcatWs": "ws://127.0.0.1:36199",
+  "napcatWebuiConfig": "",
+  "napcatQrFile": "",
+  "napcatStartCmd": "",
+  "napcatStartVbs": "",
+  "napcatWorkDir": "",
+
+  "_memory": "记忆服务。仓库里不含服务本体，需要自备（纯 Python 标准库实现即可）。",
+  "memoryUrl": "http://127.0.0.1:8790",
+  "memoryStartCmd": "",
+
+  "_tts": "语音合成。默认走 Breeze-TTS-2 的 breeze-server 常驻服务；留空则不发语音。",
+  "ttsUrl": "http://127.0.0.1:8137",
+  "ttsCli": "",
+  "ttsModel": "",
+  "ttsVoicesDir": "",
+
+  "_tools": "可选的外部工具，用不到就留空。",
+  "genImageTool": "",
+  "gifFramesTool": "",
+  "ocrEngine": ""
+}

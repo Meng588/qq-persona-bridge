@@ -1,0 +1,64 @@
+# ── 配置（含本机路径和密钥）────────────────────────────────
+config.json
+!config.example.json
+
+# ── 运行数据：全是私人的，一律不能进仓库 ──────────────────
+# 对话原文、她的念头、运行日志
+*.log
+bridge.log
+awake.log
+watchdog.log
+service.log
+service.log.err
+boot-out*.txt
+transcript.json
+awake-state.json
+distill-state.json
+expression-state.json
+voice-config.json
+watchdog-state.txt
+
+# 记忆库（里面有全部对话记忆）
+*.db
+*.db-shm
+*.db-wal
+memory-ledger.json
+
+# ── 身份与人设数据 ───────────────────────────────────────
+allow.json
+whitelist.json
+active-persona.json
+personas/*/
+!personas/dafeiyu.md
+personas/*.bundle.json
+persona-extra.md
+providers.json
+
+# ── 素材与产物 ───────────────────────────────────────────
+stickers/
+out/
+.frames/
+voice-out/
+jobs/
+inbox/
+mode-backups/
+self-edit-backups/
+*.wav
+*.breeze
+*.mp3
+*.silk
+
+# ── 浏览器与登录态（绝对不能进仓库）─────────────────────
+.chrome-login/
+.chrome-prof/
+*.cookies.txt
+cookies*.txt
+*cookies*.json
+
+# ── 日志与杂项 ───────────────────────────────────────────
+node_modules/
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.bak-*
