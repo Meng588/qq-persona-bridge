@@ -487,11 +487,60 @@ function historyFor(userId) {
   return histories.get(userId)
 }
 
+const WEEK = ['日', '一', '二', '三', '四', '五', '六']
+
+function periodOf(hour) {
+  if (hour < 5) return '凌晨'
+  if (hour < 9) return '早上'
+  if (hour < 11) return '上午'
+  if (hour < 13) return '中午'
+  if (hour < 17) return '下午'
+  if (hour < 19) return '傍晚'
+  if (hour < 23) return '晚上'
+  return '深夜'
+}
+
 function stampNow() {
   const d = new Date()
+  const h = d.getHours()
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
-    String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' +
-    String(d.getMinutes()).padStart(2, '0')
+    String(d.getDate()).padStart(2, '0') + ' 周' + WEEK[d.getDay()] + ' ' + periodOf(h) + ' ' +
+    String(h).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+}
+
+function agoLabel(at, nowMs) {
+  const min = Math.floor((nowMs - at) / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return min + ' 分钟前'
+  const hour = Math.floor(min / 60)
+  if (hour < 24) {
+    const rest = min % 60
+    return hour + ' 小时' + (rest >= 10 ? ' ' + rest + ' 分钟' : '') + '前'
+  }
+  const day = Math.floor(hour / 24)
+  return day + ' 天前'
+}
+
+function historyTimeLabel(at) {
+  if (!at) return ''
+  const d = new Date(at)
+  const now = new Date()
+  const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+  const sameDay = d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+  return sameDay ? hm : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm
+}
+
+function gapNote(history, nowMs) {
+  let last = null
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i] && history[i].at) { last = history[i]; break }
+  }
+  if (!last) return ''
+  const min = Math.floor((nowMs - last.at) / 60000)
+  if (min < 90) return ''
+  return '（他上一句是' + agoLabel(last.at, nowMs) + '。隔了这么久，他可能睡过、忙完一阵了、' +
+    '也可能就是中间没找你——别接着上一句的话头说，先想清楚现在这声招呼该怎么接。）\n\n'
 }
 
 /* ---------- 表达方式学习（从真实对话里学，不是靠我写规则） ---------- */
@@ -873,10 +922,16 @@ async function buildPromptAsync(userId, text) {
   const memory = await recallBlock(text)
   const history = historyFor(userId)
   if (!history.length) {
-    return '现在 ' + stampNow() + '。\n\n' + personaExtraBlock() + (memory ? memory + '\n\n' : '') + voiceBlock() + text
+    return '现在 ' + stampNow() + '。\n' +
+    '（这是真实时间，不是摆设。他说的话跟这个钟点对不上就直接戳穿——' +
+    '晚上说"早"、凌晨说"吃了没"、隔了十个小时还问"刚睡醒？"，都别顺着接。' +
+    '顺着接才像机器，人是有时间感的。）\n\n' +
+    personaExtraBlock() + (memory ? memory + '\n\n' : '') + voiceBlock() + text
   }
+  const nowMs = Date.now()
   const lines = history.slice(-HISTORY_TURNS * 2).map((item) => {
-    return (item.role === 'user' ? '用户：' : '你：') + item.text
+    const label = historyTimeLabel(item.at)
+    return (label ? '[' + label + '] ' : '') + (item.role === 'user' ? '用户：' : '你：') + item.text
   })
   const reused = overusedPhrases(history)
   const reuseWarn = reused.length
@@ -885,6 +940,7 @@ async function buildPromptAsync(userId, text) {
     : ''
   return '现在 ' + stampNow() + '。\n\n' + personaExtraBlock() + (memory ? memory + '\n\n' : '') +
     voiceBlock() + reuseWarn +
+    gapNote(history, nowMs) +
     '以下是你们在 QQ 上最近的对话（保持连贯，但不要复述它）：\n' +
     lines.join('\n') + '\n\n用户现在说：' + text
 }
@@ -1909,8 +1965,8 @@ async function runTask(task) {
   const fallback = (imageLines.length || sentSticker) ? '' : result.text
   await sendHuman(userId, answerText || fallback)
   const history = historyFor(userId)
-  history.push({ role: 'user', text })
-  history.push({ role: 'assistant', text: result.text })
+  history.push({ role: 'user', text, at: Date.now() })
+  history.push({ role: 'assistant', text: result.text, at: Date.now() })
   while (history.length > HISTORY_TURNS * 2) history.shift()
   saveHistories()
   appendTranscript(display || text, displayAssistantText(result.text), result.thinking)
