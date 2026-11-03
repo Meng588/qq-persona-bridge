@@ -1068,7 +1068,133 @@ function displayAssistantText(text) {
   if (!out) return extra.join(' ') || '（没说话）'
   return out + (extra.length ? ' ' + extra.join(' ') : '')
 }
+/**
+ * 问模型。
+ *
+ * 默认走 DSH（功能最全：工具、人设注入、图片识别）。
+ * 但 DSH 不是必须的 —— 一个能"收下 prompt、吐出文字"的后端就够了。
+ * 换成任何 OpenAI 兼容 API（官方、硅基流动、本地 Ollama、vLLM）都可以，
+ * 只是那些工具能力会没有，剩下对话本身。
+ *
+ * 后端在 config.json 里用 llmProvider 选：dsh / openai / cli
+ */
 function askAyan(prompt) {
+  const kind = String(config.llmProvider || 'dsh').toLowerCase()
+  if (kind === 'openai') return askOpenAI(prompt)
+  if (kind === 'cli') return askCli(prompt)
+  return askDsh(prompt)
+}
+
+/**
+ * OpenAI 兼容后端。
+ *
+ * 只做一件事：把 prompt 发给 /chat/completions，取回文本。
+ * 没有工具调用 —— 所以她不能自己看图片、跑命令。
+ * 图片和 OCR 那些能力依赖 DSH，换后端就只剩对话。
+ */
+async function askOpenAI(prompt) {
+  const base = String(config.llmBase || '').replace(/\/+$/, '')
+  const model = String(config.llmModel || '')
+  if (!base || !model) {
+    return { ok: false, text: '我这边没配好模型地址，得先在 config.json 里填 llmBase 和 llmModel' }
+  }
+  const key = config.llmKey || process.env.QQPB_LLM_KEY || process.env.OPENAI_API_KEY || ''
+
+  try {
+    const res = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(key ? { authorization: 'Bearer ' + key } : {}),
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: Number(config.llmTemperature ?? 1.0),
+        max_tokens: Number(config.llmMaxTokens ?? 2000),
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+
+    const raw = await res.text()
+    if (!res.ok) {
+      return { ok: false, text: friendlyFailure(raw || ('HTTP ' + res.status)) }
+    }
+
+    let parsed
+    try {
+      parsed = JSON.parse(raw)
+    } catch (err) {
+      return { ok: false, text: friendlyFailure(raw) }
+    }
+
+    const msg = parsed.choices && parsed.choices[0] && parsed.choices[0].message
+    const text = String((msg && msg.content) || '').trim()
+    /* 推理模型（deepseek-r1 这类）会把思考放在 reasoning_content */
+    const thinking = String((msg && (msg.reasoning_content || msg.reasoning)) || '').trim()
+    if (!text) {
+      return { ok: false, text: friendlyFailure(raw) }
+    }
+    return { ok: true, text, thinking }
+  } catch (err) {
+    return { ok: false, text: friendlyFailure(err && err.message ? err.message : String(err)) }
+  }
+}
+
+/**
+ * 任意命令行程序当后端。
+ *
+ * prompt 从 stdin 进去，答案从 stdout 出来 —— 这样能接任何
+ * "读标准输入、写标准输出"的工具（本地 llama.cpp、ollama run、shell 脚本）。
+ */
+function askCli(prompt) {
+  return new Promise((resolve) => {
+    const cmd = String(config.llmCliCmd || '')
+    if (!cmd) {
+      return resolve({ ok: false, text: '我这边没配好命令，得先在 config.json 里填 llmCliCmd' })
+    }
+    let settled = false
+    const child = spawn('cmd', ['/c', cmd], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      cwd: resolveTool(config.dshCwd) || undefined,
+    })
+
+    let out = ''
+    let err = ''
+    child.stdout.on('data', (c) => { out += c.toString('utf8') })
+    child.stderr.on('data', (c) => { err += c.toString('utf8') })
+
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      try { spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }) } catch (e) { /* 忽略 */ }
+      resolve({ ok: false, text: '这条我弄太久了，先停下。重说一次我换个办法。' })
+    }, TIMEOUT_MS)
+
+    child.on('error', (e) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve({ ok: false, text: '我这边起不来：' + e.message })
+    })
+
+    child.on('close', (code) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      const answer = String(out || '').trim()
+      if (code === 0 && answer) return resolve({ ok: true, text: answer, thinking: '' })
+      resolve({ ok: false, text: friendlyFailure((err || out || '').trim() || ('退出码 ' + code)) })
+    })
+
+    try {
+      child.stdin.end(String(prompt || ''), 'utf8')
+    } catch (e) { /* 进程可能已经退出 */ }
+  })
+}
+
+function askDsh(prompt) {
   return new Promise((resolve) => {
     const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', AYAN_MODE: 'qq' }
     /* 页面上添加的 API，key 存在 providers.json 里；

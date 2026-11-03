@@ -1,4 +1,4 @@
-﻿# QQ 人设桥
+# QQ 人设桥
 
 让 AI 在 QQ 上说话时，**不像在跟机器人说话**。
 
@@ -12,12 +12,12 @@ NapCat            ← QQ 协议端，自己装（第三方项目）
    ↓  OneBot 11 over WebSocket
 bridge.mjs        ← 本仓库：人设、情绪、记忆、语音、拆气泡
    ↓
-DSH headless      ← 模型运行时，自己装
+模型后端           ← DSH / 任何 OpenAI 兼容接口 / 任意 CLI
    ↓
 回 QQ（文字 / 表情包 / 语音）
 ```
 
-不含 QQ 协议实现，也不含模型运行时本体。
+不含 QQ 协议实现。模型后端三选一，不一定是 DSH（见下）。
 
 **适合**：想给自己的 QQ 号配一个 AI 伴侣，并且在意它说话像不像人。
 **不适合**：想要开箱即用的成品，或者只是想要一个能自动回复的 bot。
@@ -41,7 +41,7 @@ NapCat            ← QQ 协议端，自己装（第三方项目）
    ↓  OneBot 11 over WebSocket
 bridge.mjs        ← 本仓库：人设、情绪、记忆、语音、拆气泡
    ↓
-DSH headless      ← 模型运行时，自己装
+模型后端           ← DSH / 任何 OpenAI 兼容接口 / 任意 CLI
    ↓
 回 QQ（文字 / 表情包 / 语音）
 ```
@@ -107,32 +107,108 @@ SQLite 记忆服务，每来一条消息查一次，按当前话题捞相关的�
 保底在桥接侧执行，不依赖模型自觉。计数按"一条回复"算，不按气泡算。
 
 ## 准备
+## 准备
 
-需要三样东西，本仓库都不包含：
+**必须的两样：**
 
-| | 是什么 | 备注 |
+| | 是什么 | 怎么弄 |
 |---|---|---|
-| **DSH** | 模型运行时 | 闭源，需自备。配置 `dshExe` / `dshCli` |
-| **NapCat** | QQ 协议端 | 第三方，需自装。默认 `ws://127.0.0.1:36199` |
-| **记忆服务** | SQLite 记忆 | 纯 Python 标准库实现即可，需自备 |
+| **模型后端** | 三选一，见下 | 本仓库不含，但**不一定是 DSH** |
+| **NapCat** | QQ 协议端 | 第三方，自己装。默认 `ws://127.0.0.1:36199` |
 
-可选：
+**仓库里已经带了的：**
+
+| | 说明 |
+|---|---|
+| **记忆服务** | `memory/memory_service.py`，纯 Python 标准库，零依赖，`start-memory.bat` 直接跑 |
+
+**可选：**
 
 | | 用途 |
 |---|---|
 | **Breeze-TTS-2** | 语音合成（Apache-2.0） |
 | Umi-OCR | 图里文字多时先 OCR |
 
+## 模型后端：不必用 DSH
+
+桥接层只要求一件事——**收下 prompt，吐出文字**。谁干的都行。
+
+在 `config.json` 里用 `llmProvider` 选：
+
+### `openai` — 最容易上手
+
+任何 OpenAI 兼容接口都能用，不装 DSH：
+
+```json
+{
+  "llmProvider": "openai",
+  "llmBase": "https://api.siliconflow.cn/v1",
+  "llmKey": "sk-你的key",
+  "llmModel": "deepseek-ai/DeepSeek-V3"
+}
+```
+
+常见的几种：
+
+```js
+官方 OpenAI   https://api.openai.com/v1        gpt-4o-mini
+硅基流动      https://api.siliconflow.cn/v1    deepseek-ai/DeepSeek-V3
+本地 Ollama   http://127.0.0.1:11434/v1        qwen2.5:14b
+vLLM          http://127.0.0.1:8000/v1         你的模型
+```
+
+**代价**：没有工具能力。她不能自己看图片、跑命令、改文件。
+对话、人设、情绪、记忆、拆气泡、语音**都还在**——那些是桥接层做的，与后端无关。
+
+### `cli` — 用任何命令行程序当脑
+
+```json
+{
+  "llmProvider": "cli",
+  "llmCliCmd": "ollama run qwen2.5"
+}
+```
+
+prompt 从 stdin 进去，答案从 stdout 出来。适合 llama.cpp、ollama、自己写的脚本。
+
+### `dsh` — 功能最全
+
+```json
+{
+  "llmProvider": "dsh",
+  "dshExe": "C:/path/to/DeepSeek Harness.exe",
+  "dshCli": "C:/path/to/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js"
+}
+```
+
+多出来的能力：她能自己 `read_image` 看图片、跑命令、改文件、生成图片。
+人设也会通过 profile 注入（另外还有一份由桥接层每轮读取，两条路都通）。
+
+DSH 是闭源的，得自己准备。没有它就用 `openai`。
+
 ## 跑起来
 
 ```bash
 git clone <this-repo>
 cd qq-persona-bridge
-copy config.example.json config.json    # 改里面的路径
+copy config.example.json config.json
+setup.bat
 ```
 
-编辑 `config.json`，至少填 `dshExe`（和 `dshCli`）。
+`setup.bat` 会检查 node、python、config、后端、NapCat，缺什么直接告诉你。
 
+然后四个窗口（或后台任务）各起一个：
+
+```
+1. NapCat             自己装
+2. start-memory.bat   记忆服务
+3. start-tts.bat      语音（可选，要先装 Breeze-TTS）
+4. start-ayan.bat     桥
+```
+
+控制台在 `http://127.0.0.1:3002/`。
+
+---
 ```bash
 start-ayan.bat
 ```

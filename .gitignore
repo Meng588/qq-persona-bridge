@@ -19,6 +19,9 @@ voice-config.json
 watchdog-state.txt
 
 # 记忆库（里面有全部对话记忆）
+memory/*.db
+memory/*.db-shm
+memory/*.db-wal
 *.db
 *.db-shm
 *.db-wal
@@ -57,6 +60,9 @@ cookies*.txt
 
 # ── 日志与杂项 ───────────────────────────────────────────
 node_modules/
+__pycache__/
+*.pyc
+*.pyo
 .DS_Store
 Thumbs.db
 *.tmp

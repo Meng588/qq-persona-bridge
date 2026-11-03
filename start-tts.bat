@@ -1,35 +1,38 @@
 @echo off
-rem Breeze TTS 常驻服务器
+rem Breeze TTS resident server.
 rem
-rem 启动一次之后一直用，之后每条语音只算推理，不再重新加载模型。
+rem Start it once and keep it running - after that every utterance is just
+rem inference, the model is not reloaded each time.
 rem
-rem 需要先装 Breeze-TTS-2（Apache-2.0）：
+rem Requires Breeze-TTS-2 (Apache-2.0):
 rem   https://github.com/HoppouAI/Breeze-TTS-2.cpp
-rem 然后把 breeze-server（或 breeze-cli）路径、模型路径、音色目录填进
-rem config.json 的 ttsCli / ttsModel / ttsVoicesDir。
+rem Then put the breeze-server path, the model path and the voices directory
+rem into config.json as ttsCli / ttsModel / ttsVoicesDir.
 rem
-rem 提示：模型超过显存时会走 CPU 混合推理，短句要好几秒。
-rem 有独显会快很多。
+rem Note: if the model exceeds VRAM it falls back to CPU and takes several
+rem seconds per short sentence. A discrete GPU is much faster.
+rem
+rem ASCII only: a .bat without a BOM is parsed in the system codepage.
 
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
-title qq-bridge-tts
+title qq-persona-bridge-tts
 
 if not exist "config.json" (
-  echo   还没有 config.json。先复制一份改一下：
+  echo   config.json missing. Copy it first:
   echo     copy config.example.json config.json
   pause
   exit /b 1
 )
 
-rem 三个值用 | 分隔读回来。
-rem 注意：必须开 EnableDelayedExpansion，且在 for 块外先赋值 ——
-rem 否则块里的 %VAR% 会在解析时就展开成空。
+rem Read three values joined by |.
+rem EnableDelayedExpansion is required - inside a for block %VAR% would
+rem expand at parse time and always look empty.
 set "TTS_CFG="
-for /f "usebackq delims=" %%i in (`node -e "import('./config.mjs').then(m=>{const c=m.config;if(!c.ttsCli||!c.ttsModel){process.exit(1)}console.log([c.ttsCli,c.ttsModel,c.ttsVoicesDir||''].join('|'))})"`) do set "TTS_CFG=%%i"
+for /f "usebackq delims=" %%i in (`node -e "const c=require('./config.json');if(!c.ttsCli||!c.ttsModel){process.exit(1)}console.log([c.ttsCli,c.ttsModel,c.ttsVoicesDir||''].join('|'))"`) do set "TTS_CFG=%%i"
 
 if "!TTS_CFG!"=="" (
-  echo   config.json 里的 ttsCli / ttsModel 没填。
+  echo   ttsCli / ttsModel are empty in config.json
   pause
   exit /b 1
 )
@@ -41,6 +44,6 @@ for /f "tokens=1* delims=|" %%a in ("!TTS_CFG!") do set "TTS_CLI=%%a"
 for /f "tokens=2* delims=|" %%a in ("!TTS_CFG!") do set "TTS_MODEL=%%a"
 for /f "tokens=3* delims=|" %%a in ("!TTS_CFG!") do set "TTS_VOICES=%%a"
 
-echo   启动 TTS 服务器...
-echo   模型: !TTS_MODEL!
+echo   starting TTS server...
+echo   model: !TTS_MODEL!
 "!TTS_CLI!" "!TTS_MODEL!" --host 127.0.0.1 --port 8137 --ws-port 8138 --voices-dir "!TTS_VOICES!"

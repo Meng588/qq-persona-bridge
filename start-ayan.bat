@@ -1,27 +1,30 @@
 @echo off
-rem 启动 QQ 私信桥
+rem Start the bridge.
 rem
-rem 需要先准备好：
-rem   1. DSH 运行时 —— 把路径填进 config.json 的 dshExe
-rem   2. NapCat —— QQ 协议端点，默认 ws://127.0.0.1:36199
+rem Prerequisites:
+rem   1. a model backend - set llmProvider in config.json
+rem        dsh    needs dshExe + dshCli
+rem        openai needs llmBase + llmModel (+ llmKey)
+rem        cli    needs llmCliCmd
+rem   2. NapCat - QQ protocol endpoint, default ws://127.0.0.1:36199
 rem
-rem 本脚本用相对路径，跟着仓库走就能跑。
+rem ASCII only: a .bat without a BOM is parsed in the system codepage.
 
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
-title qq-bridge
+title qq-persona-bridge
 
-rem 用 DSH 运行时自带的 node（Electron 的 node 模式）。
-rem WebSocket 和 child_process 都是内置的，不需要装包。
+rem DSH runs node in Electron's node mode. Harmless for the other backends.
 set ELECTRON_RUN_AS_NODE=1
 
-rem 默认她一句话都不垫，答完直接说。
-rem 想恢复旧行为（先应一声 + 每 90 秒报进度）就设 AYAN_ACK=on。
-rem set AYAN_ACK=on
+rem By default she says nothing until the answer is ready.
+rem Set QQPB_ACK=on to restore the old behaviour (a quick "one moment"
+rem plus progress pings every 90 seconds).
+rem set QQPB_ACK=on
 
 if not exist "config.json" (
   echo.
-  echo   还没有 config.json。先复制一份改一下：
+  echo   config.json missing. Copy it first:
   echo.
   echo     copy config.example.json config.json
   echo.
@@ -29,19 +32,8 @@ if not exist "config.json" (
   exit /b 1
 )
 
-rem 从 config.json 取 dshExe。
-rem 必须开 EnableDelayedExpansion —— 否则下面的 if 块里 !DSH_EXE! 会在
-rem 解析时就展开成空，判断永远成立不了。
-set "DSH_EXE="
-for /f "usebackq delims=" %%i in (`node -e "import('./config.mjs').then(m=>console.log(m.config.dshExe||''))"`) do set "DSH_EXE=%%i"
-
-if "!DSH_EXE!"=="" (
-  echo   config.json 里的 dshExe 没填。
-  pause
-  exit /b 1
-)
-
-rem 已经在跑就别再起一个 —— 同一个 QQ 号开两个实例会互相顶号。
+rem Already running? Do not start a second one - two instances of the same
+rem QQ account kick each other offline.
 powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort 3002 -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
 if %errorlevel%==0 (
   echo bridge is already running - opening the console.
@@ -50,8 +42,35 @@ if %errorlevel%==0 (
   exit /b 0
 )
 
-echo   启动，控制台 http://127.0.0.1:3002/
-"!DSH_EXE!" "%~dp0bridge.mjs"
+rem Read the backend choice out of config.json.
+rem EnableDelayedExpansion is required: inside the if-blocks below,
+rem %VAR% would expand at parse time and always look empty.
+for /f "usebackq delims=" %%i in (`node -e "const c=require('./config.json');console.log([c.llmProvider||'dsh',c.dshExe||'-'].join('|'))"`) do set "BRAIN=%%i"
+for /f "tokens=1,2 delims=|" %%a in ("!BRAIN!") do (
+  set "PROV=%%a"
+  set "DSH_EXE=%%b"
+)
+
+if /i "!PROV!"=="dsh" (
+  if "!DSH_EXE!"=="-" (
+    echo   llmProvider is dsh but dshExe is empty.
+    echo   Fill dshExe, or set llmProvider to openai in config.json.
+    pause
+    exit /b 1
+  )
+  if not exist "!DSH_EXE!" (
+    echo   DSH not found: !DSH_EXE!
+    pause
+    exit /b 1
+  )
+  echo   starting with DSH backend
+  echo   console: http://127.0.0.1:3002/
+  "!DSH_EXE!" "%~dp0bridge.mjs"
+) else (
+  echo   starting with !PROV! backend
+  echo   console: http://127.0.0.1:3002/
+  node "%~dp0bridge.mjs"
+)
 
 echo.
 echo bridge stopped. press any key to close.

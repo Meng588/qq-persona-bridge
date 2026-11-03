@@ -2,10 +2,33 @@
   "_readme": [
     "复制成 config.json 再改。config.json 不会被提交（见 .gitignore）。",
     "所有路径可以写绝对路径，也可以写 ~ 开头的家目录路径，或相对本文件所在目录的相对路径。",
-    "留空表示不用这个功能。环境变量优先级更高（AYAN_DSH / AYAN_WS / AYAN_MEM_URL 等）。"
+    "留空表示不用这个功能。环境变量优先级更高（QQPB_ 前缀，老的 AYAN_ 也认）。"
   ],
 
-  "_dsh": "模型运行时。DSH 是闭源的，需要自己准备；路径指向 dsh-desktop-host 的 cli.js。",
+  "_brain": [
+    "用哪个「脑」。三选一：",
+    "  dsh    —— 功能最全：能自己看图、跑命令、改文件，人设由 profile 注入。需要 DSH。",
+    "  openai —— 任何 OpenAI 兼容接口（官方 / 硅基流动 / 本地 Ollama / vLLM）。只有对话，没有工具。",
+    "  cli    —— 任意命令行程序，prompt 从 stdin 进去、答案从 stdout 出来。",
+    "没有 DSH 的话就用 openai，最省事。"
+  ],
+  "llmProvider": "dsh",
+
+  "_openai_examples": {
+    "openai":   { "llmBase": "https://api.openai.com/v1", "llmModel": "gpt-4o-mini" },
+    "siliconflow": { "llmBase": "https://api.siliconflow.cn/v1", "llmModel": "deepseek-ai/DeepSeek-V3" },
+    "ollama":   { "llmBase": "http://127.0.0.1:11434/v1", "llmModel": "qwen2.5:14b" }
+  },
+  "llmBase": "",
+  "llmKey": "",
+  "llmModel": "",
+  "llmTemperature": 1.0,
+  "llmMaxTokens": 2000,
+
+  "_cli_example": "llmCliCmd 写一条完整命令，例如 \"ollama run qwen2.5\" 或 \"llama-cli -m model.gguf -no-cnv\"",
+  "llmCliCmd": "",
+
+  "_dsh": "选 llmProvider=dsh 时才需要。路径指向 dsh-desktop-host 的 cli.js。",
   "dshExe": "",
   "dshCli": "",
   "dshCwd": "",
@@ -19,7 +42,7 @@
   "napcatStartVbs": "",
   "napcatWorkDir": "",
 
-  "_memory": "记忆服务。仓库里不含服务本体，需要自备（纯 Python 标准库实现即可）。",
+  "_memory": "记忆服务。仓库自带 memory/memory_service.py，用 start-memory.bat 起，纯标准库无依赖。",
   "memoryUrl": "http://127.0.0.1:8790",
   "memoryStartCmd": "",
 

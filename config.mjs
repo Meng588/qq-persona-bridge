@@ -68,6 +68,18 @@ function require$homedir() {
 export const config = {
   source: CFG.__source,
 
+  /* ── 用哪个「脑」────────────────────────────────
+     dsh    = 默认，功能最全（工具、人设注入、看图）
+     openai = 任何 OpenAI 兼容接口，只要对话
+     cli    = 任意"读 stdin 写 stdout"的命令行程序  */
+  llmProvider: String(pick('llmProvider', 'QQPB_LLM', 'dsh')).toLowerCase(),
+  llmBase: pick('llmBase', 'QQPB_LLM_BASE', ''),
+  llmModel: pick('llmModel', 'QQPB_LLM_MODEL', ''),
+  llmKey: pick('llmKey', 'QQPB_LLM_KEY', ''),
+  llmTemperature: pick('llmTemperature', 'QQPB_LLM_TEMP', 1.0),
+  llmMaxTokens: pick('llmMaxTokens', 'QQPB_LLM_MAX_TOKENS', 2000),
+  llmCliCmd: pick('llmCliCmd', 'QQPB_LLM_CMD', ''),
+
   /* ── 模型运行时（DSH）──────────────────────────── */
   dshExe: pick('dshExe', 'AYAN_DSH', 'DeepSeek Harness.exe'),
   dshCli: pick(
