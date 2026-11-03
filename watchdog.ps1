@@ -1,4 +1,4 @@
-# Ayan watchdog - keeps the QQ bridge alive.
+# qq-persona-bridge watchdog - keeps the QQ bridge alive.
 # ASCII only: a .ps1 without a BOM is parsed in the system codepage.
 # Written for Windows PowerShell 5.1 (Task Scheduler default): no PS7-only syntax.
 #

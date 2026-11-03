@@ -28,17 +28,17 @@ import { config, resolveTool } from './config.mjs'
 const HOME = os.homedir()
 const DIR = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
-const NAPCAT_WS = env('') || 'ws://127.0.0.1:36199'
-const SEND_PORT = Number(env('')) || 3002
+const NAPCAT_WS = env('QQPB_WS') || 'ws://127.0.0.1:36199'
+const SEND_PORT = Number(env('QQPB_SEND_PORT')) || 3002
 const DSH_EXE = resolveTool(config.dshExe, 'DeepSeek Harness.exe')
 const DSH_CLI = resolveTool(config.dshCli)
-const HISTORY_TURNS = Number(env('')) || 5
-const TIMEOUT_MS = Number(env('')) || 240000
-const ACK_MS = Number(env('')) || 1200
-const PROGRESS_MS = Number(env('')) || 90000
-const ACK_ON = String(env('') || 'off').toLowerCase() === 'on'
-const ACK_BASE = env('') || ''
-const ACK_MODEL = env('') || ''
+const HISTORY_TURNS = Number(env('QQPB_HISTORY')) || 5
+const TIMEOUT_MS = Number(env('QQPB_TIMEOUT_MS')) || 240000
+const ACK_MS = Number(env('QQPB_ACK_MS')) || 1200
+const PROGRESS_MS = Number(env('QQPB_PROGRESS_MS')) || 90000
+const ACK_ON = String(env('QQPB_ACK') || 'off').toLowerCase() === 'on'
+const ACK_BASE = env('QQPB_ACK_BASE') || ''
+const ACK_MODEL = env('QQPB_ACK_MODEL') || ''
 
 /**
  * 应答和进度用哪个模型：跟着 profile 里当前的默认模型走，别写死。
@@ -113,9 +113,9 @@ async function quickAck(userText) {
     clearTimeout(timer)
   }
 }
-const MAX_PARALLEL = Number(env('')) || 1
+const MAX_PARALLEL = Number(env('QQPB_MAX_PARALLEL')) || 1
 /* 同一个人连发多条时，先攒一下再一起处理——真人不会把"你能做到吗"当独立问题 */
-const MERGE_MS = Number(env('')) || 3500
+const MERGE_MS = Number(env('QQPB_MERGE_MS')) || 3500
 
 const LOG = path.join(DIR, 'bridge.log')
 /**
@@ -145,8 +145,8 @@ function log(line, topic) {
 /* ---------- 电脑能力开关 ---------- */
 const PERM_FILE = path.join(DIR, 'permissions.json')
 const PROFILE_PATH = resolveTool(config.dshProfile) || path.join(HOME, '.dsh', 'profiles', 'headless', 'cordis.patch.yml')
-const TOOL_MARK_START = '# >>> ayan:tools:start'
-const TOOL_MARK_END = '# <<< ayan:tools:end'
+const TOOL_MARK_START = '# >>> qqpb:tools:start'
+const TOOL_MARK_END = '# <<< qqpb:tools:end'
 
 function computerAllowed() {
   try {
@@ -291,7 +291,7 @@ async function fireDueReminders() {
     const late = Math.round((now - Number(item.at)) / 60000)
     if (late > 180) { log('提醒过期太久，跳过：' + item.note.slice(0, 30)); continue }
     try {
-      const result = await askAyan(
+      const result = await askModel(
         '（现在是你之前自己定的提醒时间到点了。要提醒他的事：' + item.note +
         '）\n自然地说一句提醒他，一两句，不要写"提醒"两个字当标题，别解释怎么来的。'
       )
@@ -312,8 +312,11 @@ function loadKey(name) {
   if (process.env[name]) return process.env[name]
   try {
     const yaml = fs.readFileSync(path.join(HOME, '.dsh', '.credentials.yaml'), 'utf8')
-    const m = yaml.match(new RegExp('^\\s*' + name + ':\\s*(\\S+)', 'm'))
-    return m ? m[1] : ''
+    for (const candidate of [name, legacyKeyName(name)]) {
+      const m = yaml.match(new RegExp('^\\s*' + candidate + ':\\s*(\\S+)', 'm'))
+      if (m) return m[1]
+    }
+    return ''
   } catch (err) {
     return ''
   }
@@ -325,7 +328,7 @@ function loadKey(name) {
  *   · 只认稳定 ID，不认昵称
  *   · 空名单 = 谁都不理，不是"全部允许"
  *
- * 另外加一个 owner（主人）：她是唯一会主动发消息的对象。
+ * 另外加一个 owner：她是唯一会主动发消息的对象。
  * 老格式 allow.json（{qq:[...]}）第一次启动时自动迁移。
  */
 const WHITELIST_FILE = path.join(DIR, 'whitelist.json')
@@ -399,7 +402,7 @@ function isAllowedGroup(groupId) {
   return list.entries.some((e) => e.type === 'group' && e.id === String(groupId) && e.reply !== false)
 }
 
-/** 他在提示词里是谁：主人 / 朋友 / 群 */
+/** 他在提示词里是谁：owner / 朋友 / 群 */
 function identityOf(userId, groupId) {
   const list = loadWhitelist()
   const uid = String(userId || '')
@@ -412,19 +415,19 @@ function identityOf(userId, groupId) {
       groupName: group ? group.name || '这个群' : '这个群',
       isOwner,
       label: isOwner
-        ? '主人在群里说话（' + (group && group.name ? group.name : '群') + '）'
+        ? 'owner 在群里说话（' + (group && group.name ? group.name : '群') + '）'
         : '别人在群里说话（' + (group && group.name ? group.name : '群') + '）',
     }
   }
   return {
     kind: 'private',
     isOwner: uid === list.owner,
-    label: uid === list.owner ? '主人本人私聊你' : '别人私聊你（不是主人）',
+    label: uid === list.owner ? 'owner 本人私聊你' : '别人私聊你（不是 owner）',
   }
 }
 
 function loadAllow() {
-  /* 兼容层：老的调用点都在问「主人是谁」，所以这里返回主人 ID。
+  /* 兼容层：老的调用点都在问「owner 是谁」，所以这里返回 owner ID。
      白名单本身用 isAllowedPrivate / isAllowedGroup 判。 */
   const wl = loadWhitelist()
   return wl.owner ? [wl.owner] : []
@@ -756,16 +759,15 @@ function overusedPhrases(history, minReplies = 3, window = 10) {
 }
 
 /**
- * 环境变量：新的 Q QPB_ 优先，老的 AYAN_ 保留兼容。
- * 项目早期用 AYAN_ 前缀，直接砍掉会让别人的配置静默失效。
+ * 环境变量统一用 Q QPB_ 前缀。
  */
 function env(name, fallback = '') {
-  const suffix = name.replace(/^AYAN_/, '')
-  return process.env['QQPB_' + suffix] || process.env[name] || fallback
+  const suffix = name.replace(/^QQPB_/, '')
+  return process.env['QQPB_' + suffix] || fallback
 }
 
 /* ---------- 记忆检索（SQLite 服务，8790） ---------- */
-const MEM_URL = env('') || 'http://127.0.0.1:8790'
+const MEM_URL = env('QQPB_MEM_URL') || 'http://127.0.0.1:8790'
 
 /**
  * 按当前这句话去记忆库里捞相关的事。
@@ -1078,7 +1080,7 @@ function displayAssistantText(text) {
  *
  * 后端在 config.json 里用 llmProvider 选：dsh / openai / cli
  */
-function askAyan(prompt) {
+function askModel(prompt) {
   const kind = String(config.llmProvider || 'dsh').toLowerCase()
   if (kind === 'openai') return askOpenAI(prompt)
   if (kind === 'cli') return askCli(prompt)
@@ -1196,7 +1198,7 @@ function askCli(prompt) {
 
 function askDsh(prompt) {
   return new Promise((resolve) => {
-    const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', AYAN_MODE: 'qq' }
+    const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', QQPB_MODE: 'qq' }
     /* 页面上添加的 API，key 存在 providers.json 里；
        没填 key 的（tokenav/wdapi 这类）从 ~/.dsh/.credentials.yaml 按环境变量名取 */
     try {
@@ -1360,7 +1362,7 @@ function send(userId, text) {
   socket.send(JSON.stringify({
     action: 'send_private_msg',
     params: { user_id: Number(userId), message: [{ type: 'text', data: { text } }] },
-    echo: 'ayan-' + Date.now(),
+    echo: 'qqpb-' + Date.now(),
   }))
   return true
 }
@@ -1371,7 +1373,7 @@ const pendingActions = new Map()
 function callAction(action, params, timeoutMs = 12000) {
   return new Promise((resolve) => {
     if (!socket || socket.readyState !== 1) return resolve({ ok: false, reason: 'WS 未连接' })
-    const echo = 'ayan-act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)
+    const echo = 'qqpb-act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)
     const timer = setTimeout(() => {
       pendingActions.delete(echo)
       resolve({ ok: false, reason: '接口超时' })
@@ -1393,7 +1395,7 @@ function sendImage(userId, file) {
       user_id: Number(userId),
       message: [{ type: 'image', data: { file: 'file:///' + normalized } }],
     },
-    echo: 'ayan-img-' + Date.now(),
+    echo: 'qqpb-img-' + Date.now(),
   }))
   log('已发图：' + path.basename(file))
   return true
@@ -1577,7 +1579,7 @@ async function speakAsVoice(userId, text) {
 }
 
 async function speakAsVoiceNow(userId, text) {
-  const s = globalThis.__ayanStudio
+  const s = globalThis.__qqpbStudio
   const id = s && s.activeId()
   const clean = String(text || '').replace(/\[[^\]]*\]/g, '').trim().slice(0, 60)
   if (!id || !clean) return false
@@ -1614,7 +1616,7 @@ async function speakAsVoiceNow(userId, text) {
         user_id: Number(userId),
         message: [{ type: 'record', data: { file: 'file:///' + file.replace(/\\/g, '/') } }],
       },
-      echo: 'ayan-voice-' + Date.now(),
+      echo: 'qqpb-voice-' + Date.now(),
     }))
     log('语音发出（' + clean.slice(0, 18) + '，' + ((Date.now() - started) / 1000).toFixed(1) + 's）')
     return true
@@ -1635,7 +1637,7 @@ const EXPR_FILE = path.join(DIR, 'expression-state.json')
 
 function personaVoiceFile(key) {
   try {
-    const s = globalThis.__ayanStudio
+    const s = globalThis.__qqpbStudio
     const id = s && s.activeId()
     if (!id) return ''
     const k = String(key || '').replace(/[^a-zA-Z0-9_-]/g, '')
@@ -1649,7 +1651,7 @@ function personaVoiceFile(key) {
 
 function activeExpression() {
   try {
-    const s = globalThis.__ayanStudio
+    const s = globalThis.__qqpbStudio
     const id = s && s.activeId()
     if (!id) return {}
     const meta = s.get(id)
@@ -1697,7 +1699,7 @@ function applyExpressionFloor(text) {
   }
 
   if (!hasVoice && minV > 0 && st.sinceVoice >= minV) {
-    const s = globalThis.__ayanStudio
+    const s = globalThis.__qqpbStudio
     const id = s && s.activeId()
     const meta = id ? s.get(id) : null
     /* 保底发的是实时语音（她这句话本身），不是预录台词 */
@@ -1774,7 +1776,7 @@ function sendRich(userId, text, opts) {
   socket.send(JSON.stringify({
     action: 'send_private_msg',
     params: { user_id: Number(userId), message: segments },
-    echo: 'ayan-rich-' + Date.now(),
+    echo: 'qqpb-rich-' + Date.now(),
   }))
   return true
 }
@@ -1813,7 +1815,7 @@ async function runTask(task) {
   const prompt = await buildPrompt(userId, text)
 
   /* 不再强制她"说一句等着"：默认一句话都不垫，答完直接说。
-     想要回旧的应声/进度，启动桥时设 AYAN_ACK=on。 */
+     想要回旧的应声/进度，启动桥时设 QQPB_ACK=on。 */
   if (ACK_ON) {
     const line = await quickAck(text)
     if (line && !task.finished) send(userId, line)
@@ -1836,12 +1838,12 @@ async function runTask(task) {
         }
       }, PROGRESS_MS)
     : null
-  let result = await askAyan(prompt)
+  let result = await askModel(prompt)
   /* 上游过载/限流这类失败，隔一会儿重试一次；额度用完重试也没用 */
   if (!result.ok && isRetryable(result.text)) {
     log('上游过载，8 秒后重试一次')
     await new Promise((resolve) => setTimeout(resolve, 8000))
-    if (!task.finished) result = await askAyan(prompt)
+    if (!task.finished) result = await askModel(prompt)
   }
   if (pinger) clearInterval(pinger)
 
@@ -2140,7 +2142,7 @@ function ocrImage(file) {
 }
 
 /* ---------- 自主唤醒：想不想找他说话，由状态决定，不由钟点决定 ---------- */
-const AWAKE_ON = String(env('') || 'on').toLowerCase() !== 'off'
+const AWAKE_ON = String(env('QQPB_AWAKE') || 'on').toLowerCase() !== 'off'
 let awakening = null
 
 function recentLines() {
@@ -2184,7 +2186,7 @@ function startAwakening() {
       log: (line) => log(line),
       chat: () => currentChat(),
     })
-    globalThis.__ayanStudio = studio
+    globalThis.__qqpbStudio = studio
     /* 记忆服务：和 TTS 一样是常驻的，没在跑就拉起来。
        它挂了不影响对话（recallBlock 会返回空），但记忆就读不到了。 */
     fetch(MEM_URL + '/health', { signal: AbortSignal.timeout(2500) })
@@ -2557,19 +2559,31 @@ function writeProviders(list) {
 }
 
 function providerEnvName(entry) {
-  return entry.keyEnv || 'AYAN_KEY_' + String(entry.id || '').toUpperCase()
+  return entry.keyEnv || 'QQPB_KEY_' + String(entry.id || '').toUpperCase()
+}
+
+/**
+ * 找 API key。
+ *
+ * 环境变量优先；没有就去 ~/.dsh/.credentials.yaml 里翻。
+ * 老的 AYAN_KEY_XXX 也要认 —— 项目早期用过那个前缀，
+ * 直接砍掉会让别人已经配好的 key 静默失效（读不到，报的是额度不足，
+ * 跟 key 没关系，很难查）。
+ */
+function legacyKeyName(name) {
+  return name.replace(/^QQPB_/, 'AYAN_')
 }
 
 /** 由 providers.json 生成 YAML，替换 profile 里两个标记之间的内容。 */
 function regenerateProviders(list) {
   try {
     const text = fs.readFileSync(PROFILE_FILE, 'utf8')
-    const pattern = /(          # >>> ayan:providers:start\n)[\s\S]*?(          # <<< ayan:providers:end)/
+    const pattern = /(          # >>> qqpb:providers:start\n)[\s\S]*?(          # <<< qqpb:providers:end)/
     if (!pattern.test(text)) {
       log('profile 里没有 providers 标记，跳过重建')
       return false
     }
-    const lines = ['          # >>> ayan:providers:start']
+    const lines = ['          # >>> qqpb:providers:start']
     for (const entry of list) {
       lines.push('          ' + entry.id + ':')
       lines.push('            displayName: ' + JSON.stringify(entry.name || entry.id))
@@ -2596,7 +2610,7 @@ function regenerateProviders(list) {
       if (entry.contextWindow) lines.push('                contextWindow: ' + entry.contextWindow)
       if (entry.maxTokens) lines.push('                maxTokens: ' + entry.maxTokens)
     }
-    lines.push('          # <<< ayan:providers:end')
+    lines.push('          # <<< qqpb:providers:end')
     fs.copyFileSync(PROFILE_FILE, PROFILE_FILE + '.bak-' + Date.now())
     fs.writeFileSync(PROFILE_FILE, text.replace(pattern, lines.join('\n')), 'utf8')
     log('已按 providers.json 重建 providers 段（' + list.length + ' 个）')
@@ -2936,7 +2950,7 @@ function startSendServer() {
 
     /* ── 人设工坊 ─────────────────────────────────────── */
     if (req.method === 'GET' && url === '/studio/personas') {
-      const s = globalThis.__ayanStudio
+      const s = globalThis.__qqpbStudio
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
       return res.end(JSON.stringify({ ok: true, active: s ? s.activeId() : '', list: s ? s.list() : [] }))
     }
@@ -2960,7 +2974,7 @@ function startSendServer() {
     /* 试听：kind=preview 听音色；kind=line&key=xxx 听某条台词 */
     if (req.method === 'GET' && url.startsWith('/studio/audio')) {
       const q = new URL(url, 'http://127.0.0.1').searchParams
-      const s = globalThis.__ayanStudio
+      const s = globalThis.__qqpbStudio
       const id = q.get('id') || ''
       const kind = q.get('kind') || 'preview'
       if (!s || !id) { res.writeHead(400); return res.end('缺少 id') }
@@ -3211,7 +3225,7 @@ function startSendServer() {
 
       /* ── 人设工坊（POST）────────────────────────────── */
       if (url.startsWith('/studio/')) {
-        const s = globalThis.__ayanStudio
+        const s = globalThis.__qqpbStudio
         const reply = (code, obj) => {
           res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' })
           res.end(JSON.stringify(obj))
@@ -3286,7 +3300,7 @@ function startSendServer() {
         const wantOwner = String(payload.owner || '').trim()
         const list = normalizeWhitelist({ owner: wantOwner, entries: incoming })
 
-        /* 主人必须是一个私聊条目；没在名单里就自动补进去 */
+        /* owner 必须是一个私聊条目；没在名单里就自动补进去 */
         if (list.owner && !list.entries.some((e) => e.type === 'private' && e.id === list.owner)) {
           list.entries.unshift({ id: list.owner, type: 'private', name: '我', reply: true })
         }
@@ -3295,7 +3309,7 @@ function startSendServer() {
           res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' })
           return res.end(JSON.stringify({ ok: false, reason: '写不进去' }))
         }
-        log('白名单更新：' + saved.entries.length + ' 条，主人 ' + (saved.owner || '（未设置）'))
+        log('白名单更新：' + saved.entries.length + ' 条，owner ' + (saved.owner || '（未设置）'))
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
         return res.end(JSON.stringify({ ok: true, owner: saved.owner, entries: saved.entries }))
       }
@@ -3378,7 +3392,7 @@ function startSendServer() {
           model,
           /* 更新已有条目时，没填 key 就保留原来的 key 和 keyEnv，别把能用的配置冲掉 */
           key: key || (previous && previous.key) || '',
-          keyEnv: (previous && previous.keyEnv) || 'AYAN_KEY_' + id.toUpperCase(),
+          keyEnv: (previous && previous.keyEnv) || 'QQPB_KEY_' + id.toUpperCase(),
           vision: true,
           reasoning: previous ? previous.reasoning : false,
           contextWindow: previous ? previous.contextWindow : undefined,
@@ -3497,7 +3511,7 @@ function sweepOrphans() {
 log('桥启动 · 白名单 ' + (loadAllow().join(',') || '（空：接受所有私聊）'))
 
 if (process.argv.includes('--self-test')) {
-  askAyan('用五个字回答：自检通过').then((result) => {
+  askModel('用五个字回答：自检通过').then((result) => {
     log('自检结果：' + (result.ok ? 'OK ' : 'FAIL ') + result.text)
     process.exit(result.ok ? 0 : 1)
   })

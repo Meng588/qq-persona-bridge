@@ -33,6 +33,10 @@ whitelist.json
 active-persona.json
 personas/*/
 !personas/dafeiyu.md
+!personas/dafeiyu/
+personas/dafeiyu/*.wav
+personas/dafeiyu/*.breeze
+personas/dafeiyu/lines/
 personas/*.bundle.json
 persona-extra.md
 providers.json

@@ -203,14 +203,14 @@ setup.bat
 1. NapCat             自己装
 2. start-memory.bat   记忆服务
 3. start-tts.bat      语音（可选，要先装 Breeze-TTS）
-4. start-ayan.bat     桥
+4. start-bridge.bat     桥
 ```
 
 控制台在 `http://127.0.0.1:3002/`。
 
 ---
 ```bash
-start-ayan.bat
+start-bridge.bat
 ```
 
 控制台在 `http://127.0.0.1:3002/`。
@@ -286,7 +286,7 @@ curl -X POST http://127.0.0.1:3002/studio/activate -d '{"id":"dafeiyu"}'
 
 配置文件之外的临时覆盖，用环境变量。优先级：`config.json` 会被环境变量盖掉。
 
-新前缀是 `QQPB_`（QQ Persona Bridge），老的 `AYAN_` 仍然认，项目早期用过那个。
+统一用 `QQPB_`（QQ Persona Bridge）前缀。
 
 ```
 QQPB_WS              NapCat 的 OneBot WebSocket

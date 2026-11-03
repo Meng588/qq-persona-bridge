@@ -3,7 +3,7 @@
  * 用法：node notify.mjs restarted|napcat-down|ok
  * 把代码翻成一句人话，POST 到桥的本地发送口。桥没起来就静默失败。
  */
-const PORT = Number(process.env.AYAN_SEND_PORT) || 3002
+const PORT = Number(process.env.QQPB_SEND_PORT) || 3002
 
 const MESSAGES = {
   restarted: '（看门狗：刚才桥断了，我把它拉起来了）',

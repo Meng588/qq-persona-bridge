@@ -12,7 +12,7 @@ const DIR = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]
 
 function readConfig() {
   const candidates = [
-    process.env.AYAN_CONFIG,
+    process.env.QQPB_CONFIG,
     path.join(DIR, 'config.json'),
     path.join(DIR, 'config.example.json'),
   ].filter(Boolean)
@@ -33,16 +33,13 @@ const CFG = readConfig()
 /**
  * 取配置值，优先级：环境变量 > config.json > 内置默认。
  *
- * 环境变量认两个前缀，新的 Q QPB_ 优先，老的 AYAN_ 保留兼容——
- * 项目早期用过 AYAN_ 前缀，砍掉会让别人的配置静默失效。
+ * 环境变量统一用 Q QPB_ 前缀。
  */
 function pick(key, envName, fallback) {
   if (envName) {
-    const suffix = envName.replace(/^AYAN_/, '')
+    const suffix = envName.replace(/^QQPB_/, '')
     const modern = process.env['QQPB_' + suffix]
     if (modern) return modern
-    const legacy = process.env[envName]
-    if (legacy) return legacy
   }
   const v = CFG[key]
   if (v !== undefined && v !== null && v !== '') return v
@@ -81,37 +78,37 @@ export const config = {
   llmCliCmd: pick('llmCliCmd', 'QQPB_LLM_CMD', ''),
 
   /* ── 模型运行时（DSH）──────────────────────────── */
-  dshExe: pick('dshExe', 'AYAN_DSH', 'DeepSeek Harness.exe'),
+  dshExe: pick('dshExe', 'QQPB_DSH', 'DeepSeek Harness.exe'),
   dshCli: pick(
     'dshCli',
-    'AYAN_CLI',
+    'QQPB_CLI',
     'resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js'
   ),
-  dshCwd: pick('dshCwd', 'AYAN_CWD', ''),
-  dshProfile: pick('dshProfile', 'AYAN_PROFILE', ''),
+  dshCwd: pick('dshCwd', 'QQPB_CWD', ''),
+  dshProfile: pick('dshProfile', 'QQPB_PROFILE', ''),
 
   /* ── NapCat ──────────────────────────────────── */
-  napcatWs: pick('napcatWs', 'AYAN_WS', 'ws://127.0.0.1:36199'),
-  napcatWebuiConfig: pick('napcatWebuiConfig', 'AYAN_NAPCAT_WEBUI', ''),
-  napcatQrFile: pick('napcatQrFile', 'AYAN_NAPCAT_QR', ''),
-  napcatStartCmd: pick('napcatStartCmd', 'AYAN_NAPCAT_BAT', ''),
-  napcatStartVbs: pick('napcatStartVbs', 'AYAN_NAPCAT_VBS', ''),
-  napcatWorkDir: pick('napcatWorkDir', 'AYAN_NAPCAT_DIR', ''),
+  napcatWs: pick('napcatWs', 'QQPB_WS', 'ws://127.0.0.1:36199'),
+  napcatWebuiConfig: pick('napcatWebuiConfig', 'QQPB_NAPCAT_WEBUI', ''),
+  napcatQrFile: pick('napcatQrFile', 'QQPB_NAPCAT_QR', ''),
+  napcatStartCmd: pick('napcatStartCmd', 'QQPB_NAPCAT_BAT', ''),
+  napcatStartVbs: pick('napcatStartVbs', 'QQPB_NAPCAT_VBS', ''),
+  napcatWorkDir: pick('napcatWorkDir', 'QQPB_NAPCAT_DIR', ''),
 
   /* ── 记忆服务 ─────────────────────────────────── */
-  memoryUrl: pick('memoryUrl', 'AYAN_MEM_URL', 'http://127.0.0.1:8790'),
-  memoryStartCmd: pick('memoryStartCmd', 'AYAN_MEM_START', ''),
+  memoryUrl: pick('memoryUrl', 'QQPB_MEM_URL', 'http://127.0.0.1:8790'),
+  memoryStartCmd: pick('memoryStartCmd', 'QQPB_MEM_START', ''),
 
   /* ── 语音（TTS）───────────────────────────────── */
-  ttsUrl: pick('ttsUrl', 'AYAN_TTS_URL', 'http://127.0.0.1:8137'),
-  ttsCli: pick('ttsCli', 'AYAN_TTS_CLI', ''),
-  ttsModel: pick('ttsModel', 'AYAN_TTS_MODEL', ''),
-  ttsVoicesDir: pick('ttsVoicesDir', 'AYAN_TTS_VOICES', ''),
+  ttsUrl: pick('ttsUrl', 'QQPB_TTS_URL', 'http://127.0.0.1:8137'),
+  ttsCli: pick('ttsCli', 'QQPB_TTS_CLI', ''),
+  ttsModel: pick('ttsModel', 'QQPB_TTS_MODEL', ''),
+  ttsVoicesDir: pick('ttsVoicesDir', 'QQPB_TTS_VOICES', ''),
 
   /* ── 可选工具 ─────────────────────────────────── */
-  genImageTool: pick('genImageTool', 'AYAN_GEN_IMAGE', ''),
-  gifFramesTool: pick('gifFramesTool', 'AYAN_GIF_FRAMES', ''),
-  ocrEngine: pick('ocrEngine', 'AYAN_OCR', ''),
+  genImageTool: pick('genImageTool', 'QQPB_GEN_IMAGE', ''),
+  gifFramesTool: pick('gifFramesTool', 'QQPB_GIF_FRAMES', ''),
+  ocrEngine: pick('ocrEngine', 'QQPB_OCR', ''),
 }
 
 export function expandPath(p, base) {

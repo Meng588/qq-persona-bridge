@@ -130,7 +130,7 @@ echo.
 echo ============================================
 if %MISSING%==0 (
   if %WARN%==0 (
-    echo   All good. Run start-ayan.bat to launch.
+    echo   All good. Run start-bridge.bat to launch.
   ) else (
     echo   Required items OK. %WARN% optional item^(s^) missing.
   )
@@ -143,6 +143,6 @@ echo Start order, one window each:
 echo   1. NapCat            (install it yourself)
 echo   2. start-memory.bat  memory service
 echo   3. start-tts.bat     voice (optional, needs Breeze-TTS)
-echo   4. start-ayan.bat    the bridge
+echo   4. start-bridge.bat    the bridge
 echo.
 pause
